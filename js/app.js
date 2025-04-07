@@ -24,15 +24,22 @@
         // Clouds settings
         cloudCount: 15,
         cloudSpeed: 0.02,
-        cloudHeight: 40
+        cloudHeight: 40,
+        
+        // Campfire settings
+        fireIntensity: 1.5,
+        fireColor: '#FF6600',
+        smokeAmount: 50
     };
     
     // Simulation state
     let isSimulationRunning = false;
     let animationFrameId = null;
+    let lastTime = 0;
     
     // Scene objects
     let terrainObject, trees = [], clouds;
+    let campfire;
     
     // Setup container
     const container = document.getElementById('container');
@@ -97,6 +104,35 @@
     }
     createInitialClouds();
     
+    // Add campfire
+    function createInitialCampfire() {
+        // Find a good spot for the campfire (flat area, not too close to trees)
+        const campfirePosition = findCampfirePosition();
+        
+        // Create the campfire at the found position
+        campfire = createCampfire(scene, campfirePosition);
+        
+        // Apply initial settings
+        updateFireIntensity(settings.fireIntensity);
+        updateFireColor(settings.fireColor);
+        updateSmokeAmount(settings.smokeAmount);
+    }
+    
+    // Find a suitable location for the campfire
+    function findCampfirePosition() {
+        // Start with a position near the center, but slightly offset
+        const posX = (Math.random() - 0.5) * 20;
+        const posZ = (Math.random() - 0.5) * 20;
+        
+        // Get height at this position
+        const posY = getHeightAt(posX, posZ, settings.terrainHeight);
+        
+        return new THREE.Vector3(posX, posY, posZ);
+    }
+    
+    // Call after terrain and trees are created
+    createInitialCampfire();
+    
     // Create a static preview render
     function renderStaticPreview() {
         // Set static camera position
@@ -119,10 +155,83 @@
         }
     });
     
+    // Campfire control functions
+    function updateFireIntensity(intensity) {
+        if (campfire && campfire.group && campfire.group.userData.light) {
+            // Update light intensity
+            campfire.group.userData.light.intensity = intensity;
+            
+            // Update fire particle size and speed
+            if (campfire.fireParticles) {
+                const sizes = campfire.fireParticles.geometry.attributes.size.array;
+                const velocities = campfire.fireParticles.geometry.userData.velocities;
+                
+                for (let i = 0; i < sizes.length; i++) {
+                    // Scale size by intensity
+                    sizes[i] = (0.5 + Math.random() * 0.5) * intensity;
+                    
+                    // Update velocity (make particles rise faster with higher intensity)
+                    const i3 = i * 3;
+                    velocities[i3 + 1] = (1 + Math.random()) * intensity;
+                }
+                campfire.fireParticles.geometry.attributes.size.needsUpdate = true;
+            }
+        }
+    }
+    
+    function updateFireColor(colorHex) {
+        if (campfire && campfire.fireParticles) {
+            // Convert hex to RGB
+            const color = new THREE.Color(colorHex);
+            
+            // Update fire particle colors
+            const colors = campfire.fireParticles.geometry.attributes.color.array;
+            
+            for (let i = 0; i < colors.length / 3; i++) {
+                const i3 = i * 3;
+                // Base color with variation
+                colors[i3] = color.r * (0.8 + Math.random() * 0.2); // Red
+                colors[i3 + 1] = color.g * (0.7 + Math.random() * 0.3); // Green 
+                colors[i3 + 2] = color.b * (0.7 + Math.random() * 0.3); // Blue
+            }
+            
+            campfire.fireParticles.geometry.attributes.color.needsUpdate = true;
+            
+            // Update light color
+            if (campfire.group && campfire.group.userData.light) {
+                campfire.group.userData.light.color.set(colorHex);
+            }
+        }
+    }
+    
+    function updateSmokeAmount(amount) {
+        if (campfire && campfire.smokeParticles) {
+            // Scale the particle count based on the amount
+            const particleCount = Math.floor(amount);
+            const smokeGeometry = campfire.smokeParticles.geometry;
+            
+            // Only use as many particles as specified by the amount
+            if (smokeGeometry.userData.activeParticles !== particleCount) {
+                smokeGeometry.userData.activeParticles = particleCount;
+                
+                // Reset positions for particles outside the active range
+                const positions = smokeGeometry.attributes.position.array;
+                const lifetimes = smokeGeometry.userData.lifetimes;
+                
+                for (let i = particleCount; i < positions.length / 3; i++) {
+                    lifetimes[i] = -1; // Mark for reset on next update
+                }
+                
+                smokeGeometry.attributes.position.needsUpdate = true;
+            }
+        }
+    }
+    
     // Update functions for controls
     const updateCallbacks = {
         startSimulation: function() {
             isSimulationRunning = true;
+            lastTime = performance.now();
             if (!animationFrameId) {
                 animate();
             }
@@ -157,6 +266,12 @@
             
             // Regenerate trees to place them on the new terrain
             regenerateTrees();
+            
+            // Reposition campfire
+            if (campfire && campfire.group) {
+                const newPosition = findCampfirePosition();
+                campfire.group.position.copy(newPosition);
+            }
             
             // Update the view if paused
             if (!isSimulationRunning) {
@@ -254,6 +369,34 @@
                     renderStaticPreview();
                 }
             }
+        },
+        
+        // Campfire control callbacks
+        updateFireIntensity: function(value) {
+            updateFireIntensity(value);
+            
+            // Update the view if paused
+            if (!isSimulationRunning) {
+                renderStaticPreview();
+            }
+        },
+        
+        updateFireColor: function(value) {
+            updateFireColor(value);
+            
+            // Update the view if paused
+            if (!isSimulationRunning) {
+                renderStaticPreview();
+            }
+        },
+        
+        updateSmokeAmount: function(value) {
+            updateSmokeAmount(value);
+            
+            // Update the view if paused
+            if (!isSimulationRunning) {
+                renderStaticPreview();
+            }
         }
     };
     
@@ -261,10 +404,15 @@
     const controlsPanel = new ControlsPanel(settings, updateCallbacks);
     
     // Animation loop
-    function animate() {
+    function animate(currentTime) {
         if (!isSimulationRunning) {
             return;
         }
+        
+        // Calculate delta time for smooth animations
+        if (!currentTime) currentTime = performance.now();
+        const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
+        lastTime = currentTime;
         
         animationFrameId = requestAnimationFrame(animate);
         
@@ -280,6 +428,11 @@
             updateClouds(clouds);
         }
         
+        // Update campfire particles
+        if (campfire) {
+            campfire.update(deltaTime);
+        }
+        
         // Render the scene
         renderer.render(scene, camera);
     }
@@ -287,6 +440,8 @@
     // Initial render to show a static preview
     renderStaticPreview();
     
-    // Initially, the simulation is paused until the user clicks Start
-    isSimulationRunning = false;
+    // Start simulation initially (you can change this to false if you want to start paused)
+    isSimulationRunning = true;
+    lastTime = performance.now();
+    animate();
 })();

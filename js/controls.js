@@ -29,6 +29,17 @@ class ControlsPanel {
         this.setSliderValue('cloud-speed', this.settings.cloudSpeed);
         this.setSliderValue('cloud-height', this.settings.cloudHeight);
         
+        // Set campfire controls if they exist
+        if (this.settings.fireIntensity !== undefined) {
+            this.setSliderValue('fire-intensity', this.settings.fireIntensity);
+        }
+        if (this.settings.fireColor !== undefined) {
+            document.getElementById('fire-color').value = this.settings.fireColor;
+        }
+        if (this.settings.smokeAmount !== undefined) {
+            this.setSliderValue('smoke-amount', this.settings.smokeAmount);
+        }
+        
         // Make sections collapsible
         this.setupCollapsibleSections();
         
@@ -39,17 +50,20 @@ class ControlsPanel {
     setupPlayIconFallback() {
         // Check if the play icon loaded correctly
         const startButton = document.getElementById('start-button');
-        const img = startButton.querySelector('img');
-        
-        img.onerror = () => {
-            // If image failed to load, use an SVG icon embedded in the JS
-            const svgIcon = `
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="50" height="50" fill="#ffffff">
-                    <path d="M8 5v14l11-7z"/>
-                </svg>
-            `;
-            startButton.innerHTML = svgIcon;
-        };
+        if (startButton) {
+            const img = startButton.querySelector('img');
+            if (img) {
+                img.onerror = () => {
+                    // If image failed to load, use an SVG icon embedded in the JS
+                    const svgIcon = `
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="50" height="50" fill="#ffffff">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                    `;
+                    startButton.innerHTML = svgIcon;
+                };
+            }
+        }
     }
     
     setSliderValue(id, value) {
@@ -204,6 +218,37 @@ class ControlsPanel {
                 this.callbacks.updateCloudHeight();
             }
         });
+        
+        // Campfire controls
+        const fireIntensitySlider = document.getElementById('fire-intensity');
+        if (fireIntensitySlider) {
+            this.setupSliderListener('fire-intensity', value => {
+                this.settings.fireIntensity = value;
+                if (this.callbacks.updateFireIntensity) {
+                    this.callbacks.updateFireIntensity(value);
+                }
+            });
+        }
+        
+        const fireColorInput = document.getElementById('fire-color');
+        if (fireColorInput) {
+            fireColorInput.addEventListener('input', e => {
+                this.settings.fireColor = e.target.value;
+                if (this.callbacks.updateFireColor) {
+                    this.callbacks.updateFireColor(e.target.value);
+                }
+            });
+        }
+        
+        const smokeAmountSlider = document.getElementById('smoke-amount');
+        if (smokeAmountSlider) {
+            this.setupSliderListener('smoke-amount', value => {
+                this.settings.smokeAmount = value;
+                if (this.callbacks.updateSmokeAmount) {
+                    this.callbacks.updateSmokeAmount(value);
+                }
+            });
+        }
     }
     
     setupSliderListener(id, callback) {

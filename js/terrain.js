@@ -1,6 +1,5 @@
 // Create a simple terrain
-function createTerrain() {
-    const size = 100;
+function createTerrain(size = 100, heightScale = 10) {
     const segments = 50;
     const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
     geometry.rotateX(-Math.PI / 2);
@@ -11,10 +10,7 @@ function createTerrain() {
         // Simple noise function using sine waves
         const x = vertices[i];
         const z = vertices[i + 2];
-        const height = 
-            Math.sin(x * 0.05) * 
-            Math.sin(z * 0.05) * 5 + 
-            Math.sin(x * 0.1 + z * 0.1) * 2;
+        const height = getHeightNoise(x, z) * heightScale;
         
         vertices[i + 1] = height;
     }
@@ -34,9 +30,14 @@ function createTerrain() {
     return terrain;
 }
 
-// Get height at a given x,z coordinate using the same algorithm as terrain generation
-function getHeightAt(x, z) {
+// The basic noise function for the terrain
+function getHeightNoise(x, z) {
     return Math.sin(x * 0.05) * 
-           Math.sin(z * 0.05) * 5 + 
-           Math.sin(x * 0.1 + z * 0.1) * 2;
+           Math.sin(z * 0.05) * 0.5 + 
+           Math.sin(x * 0.1 + z * 0.1) * 0.2;
+}
+
+// Get height at a given x,z coordinate using the same algorithm as terrain generation
+function getHeightAt(x, z, heightScale = 10) {
+    return getHeightNoise(x, z) * heightScale;
 }

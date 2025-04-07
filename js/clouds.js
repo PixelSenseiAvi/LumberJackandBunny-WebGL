@@ -1,5 +1,5 @@
 // Create clouds
-function createClouds(count = 15) {
+function createClouds(count = 15, baseHeight = 40) {
     const clouds = new THREE.Group();
     
     const cloudMaterial = new THREE.MeshLambertMaterial({
@@ -14,7 +14,7 @@ function createClouds(count = 15) {
         
         // Random position
         const x = Math.random() * 200 - 100;
-        const y = 40 + Math.random() * 20;
+        const y = baseHeight + Math.random() * 20;
         const z = Math.random() * 200 - 100;
         
         cloud.position.set(x, y, z);
@@ -49,9 +49,11 @@ function createClouds(count = 15) {
 }
 
 // Update cloud positions
-function updateClouds(clouds) {
+function updateClouds(clouds, speedFactor = 1) {
+    if (!clouds) return;
+    
     clouds.children.forEach(cloud => {
-        cloud.position.x += cloud.userData.speed;
+        cloud.position.x += cloud.userData.speed * speedFactor;
         if (cloud.position.x > 100) {
             cloud.position.x = -100;
         }

@@ -9,6 +9,7 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
+            box-sizing: border-box;
         }
         
         body, html {
@@ -16,15 +17,339 @@
             height: 100%;
             overflow: hidden;
             background-color: #87CEEB;
+            font-family: Arial, sans-serif;
+        }
+        
+        #container {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+        
+        #controls-panel {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 300px;
+            height: 100%;
+            background-color: #222;
+            color: #fff;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+        
+        .controls-header {
+            background-color: #111;
+            padding: 10px 15px;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .controls-header:hover {
+            background-color: #333;
+        }
+        
+        .controls-section {
+            border-bottom: 1px solid #444;
+        }
+        
+        .controls-content {
+            padding: 10px;
+        }
+        
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 5px;
+        }
+        
+        .control-row:hover {
+            background-color: #333;
+        }
+        
+        .control-label {
+            flex: 1;
+        }
+        
+        .control-input {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+        
+        input[type="range"] {
+            width: 120px;
+            margin-right: 10px;
+            background: #444;
+        }
+        
+        input[type="number"] {
+            width: 50px;
+            background: #333;
+            border: 1px solid #555;
+            color: #fff;
+            padding: 3px;
+        }
+        
+        input[type="color"] {
+            width: 30px;
+            height: 20px;
+            border: none;
+            padding: 0;
+            background: none;
+        }
+        
+        button {
+            background-color: #444;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        
+        button:hover {
+            background-color: #555;
+        }
+        
+        .checkbox-control {
+            display: flex;
+            align-items: center;
+        }
+        
+        .checkbox-control input {
+            margin-right: 10px;
+        }
+        
+        .chevron::after {
+            content: "▼";
+            float: right;
+            transition: transform 0.3s;
+        }
+        
+        .chevron.collapsed::after {
+            transform: rotate(-90deg);
+        }
+        
+        /* Value display next to slider */
+        .value-display {
+            min-width: 30px;
+            text-align: right;
+        }
+        
+        /* Start Button Styles */
+        .start-button-container {
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .start-button {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: #2a2a2a;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: all 0.1s ease;
+            overflow: hidden;
+            outline: none;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .start-button:hover {
+            background-color: #333;
+        }
+        
+        .start-button:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+        }
+        
+        .start-button img {
+            width: 50px;
+            height: 50px;
+            transition: all 0.1s ease;
+        }
+        
+        .start-button:active img {
+            transform: scale(0.9);
+        }
+        
+        .start-button::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 70%);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .start-button:hover::after {
+            opacity: 1;
+        }
+        
+        .start-button-label {
+            color: white;
+            font-weight: bold;
+            margin-top: 10px;
+            text-align: center;
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <div id="container"></div>
+    <div id="controls-panel">
+        <div class="controls-section">
+            <div class="controls-header chevron">Controls</div>
+            <div class="controls-content">
+                <!-- Start Button -->
+                <div class="start-button-container">
+                    <div>
+                        <button id="start-button" class="start-button">
+                            <img src="img/play-icon.png" alt="Start">
+                        </button>
+                        <div class="start-button-label">Start</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls-section">
+            <div class="controls-header chevron">Camera</div>
+            <div class="controls-content">
+                <div class="control-row">
+                    <div class="control-label">Rotation Speed</div>
+                    <div class="control-input">
+                        <input type="range" id="rotation-speed" min="0" max="0.001" step="0.00001" value="0.0001">
+                        <div class="value-display" id="rotation-speed-value">0.0001</div>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="control-label">Camera Height</div>
+                    <div class="control-input">
+                        <input type="range" id="camera-height" min="10" max="50" step="1" value="20">
+                        <div class="value-display" id="camera-height-value">20</div>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="control-label">Camera Distance</div>
+                    <div class="control-input">
+                        <input type="range" id="camera-distance" min="20" max="100" step="1" value="50">
+                        <div class="value-display" id="camera-distance-value">50</div>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="control-label">Look At Height</div>
+                    <div class="control-input">
+                        <input type="range" id="look-at-height" min="-10" max="20" step="1" value="0">
+                        <div class="value-display" id="look-at-height-value">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls-section">
+            <div class="controls-header chevron">Terrain</div>
+            <div class="controls-content">
+                <div class="control-row">
+                    <div class="control-label">Size</div>
+                    <div class="control-input">
+                        <input type="range" id="terrain-size" min="50" max="200" step="10" value="100">
+                        <div class="value-display" id="terrain-size-value">100</div>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="control-label">Height</div>
+                    <div class="control-input">
+                        <input type="range" id="terrain-height" min="1" max="20" step="0.5" value="10">
+                        <div class="value-display" id="terrain-height-value">10</div>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="control-label">Color</div>
+                    <div class="control-input">
+                        <input type="color" id="terrain-color" value="#44AA44">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls-section">
+            <div class="controls-header chevron">Trees</div>
+            <div class="controls-content">
+                <div class="control-row">
+                    <div class="control-label">Count</div>
+                    <div class="control-input">
+                        <input type="range" id="tree-count" min="0" max="300" step="10" value="100">
+                        <div class="value-display" id="tree-count-value">100</div>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="control-label">Trunk Color</div>
+                    <div class="control-input">
+                        <input type="color" id="trunk-color" value="#8B4513">
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="control-label">Leaves Color</div>
+                    <div class="control-input">
+                        <input type="color" id="leaves-color" value="#228B22">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls-section">
+            <div class="controls-header chevron">Clouds</div>
+            <div class="controls-content">
+                <div class="control-row">
+                    <div class="control-label">Count</div>
+                    <div class="control-input">
+                        <input type="range" id="cloud-count" min="0" max="50" step="5" value="15">
+                        <div class="value-display" id="cloud-count-value">15</div>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="control-label">Speed</div>
+                    <div class="control-input">
+                        <input type="range" id="cloud-speed" min="0" max="0.1" step="0.01" value="0.02">
+                        <div class="value-display" id="cloud-speed-value">0.02</div>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="control-label">Height</div>
+                    <div class="control-input">
+                        <input type="range" id="cloud-height" min="20" max="100" step="5" value="40">
+                        <div class="value-display" id="cloud-height-value">40</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="js/utils.js"></script>
     <script src="js/terrain.js"></script>
     <script src="js/trees.js"></script>
     <script src="js/clouds.js"></script>
+    <script src="js/controls.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

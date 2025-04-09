@@ -75,7 +75,199 @@
     );
     camera.position.set(0, settings.cameraHeight, settings.cameraDistance);
     camera.lookAt(0, settings.lookAtHeight, 0);
+
+
+    let audioManager;
+    let isSpeechBubbleVisible = false;
     
+    function setupAudio() {
+        // Create audio manager with camera and new listener
+        audioManager = new AudioManager(camera);
+        
+        // Create speech bubble for narration text
+        const speechBubble = document.createElement('div');
+        speechBubble.className = 'speech-bubble';
+        document.body.appendChild(speechBubble);
+        
+        // Load ambient sounds
+        audioManager.addAmbientSound(
+            'forest', 
+            'audio/forest-ambience.mp3', 
+            { volume: 0.4, loop: true }
+        );
+        
+        // Load fire sound as a point sound attached to the campfire
+        if (campfire && campfire.group) {
+            audioManager.addPointSound(
+                'fire', 
+                'audio/fire-crackling.mp3', 
+                campfire.group, 
+                { volume: 0.7, loop: true, refDistance: 3 }
+            );
+        }
+        
+        // Load voice overs with text for captions
+        const voiceOvers = [
+            {
+                name: 'intro',
+                file: 'audio/narration-intro.mp3',
+                text: "Welcome to the enchanted forest. Take a moment to look around and enjoy the peaceful scenery."
+            }//,
+            // {
+            //     name: 'forest',
+            //     file: 'audio/narration-forest.mp3',
+            //     text: "The trees sway gently in the breeze. Listen closely and you might hear the birds singing in the distance."
+            // },
+            // {
+            //     name: 'campfire',
+            //     file: 'audio/narration-campfire.mp3',
+            //     text: "A warm campfire burns in the clearing. The stumps around it offer a place to rest and enjoy the warmth."
+            // }
+        ];
+        
+        // Add each voice over
+        voiceOvers.forEach(vo => {
+            audioManager.addVoiceOver(vo.name, vo.file, {
+                volume: 1.0,
+                onEnded: () => {
+                    // Hide speech bubble when narration ends
+                    hideSpeechBubble();
+                }
+            });
+        });
+        
+        // Setup speech bubble functions
+        function showSpeechBubble(text) {
+            speechBubble.textContent = text;
+            speechBubble.classList.add('visible');
+            isSpeechBubbleVisible = true;
+        }
+        
+        function hideSpeechBubble() {
+            speechBubble.classList.remove('visible');
+            isSpeechBubbleVisible = false;
+        }
+        
+        // Add event listeners for audio controls
+        setupAudioControls(voiceOvers, showSpeechBubble, hideSpeechBubble);
+    }
+    
+    function setupAudioControls(voiceOvers, showSpeechBubble, hideSpeechBubble) {
+        // Volume sliders
+        setupVolumeSlider('master-volume', value => {
+            audioManager.setMasterVolume(value);
+        });
+        
+        setupVolumeSlider('ambient-volume', value => {
+            audioManager.setAmbientVolume(value);
+        });
+        
+        setupVolumeSlider('effects-volume', value => {
+            audioManager.setEffectsVolume(value);
+        });
+        
+        setupVolumeSlider('voice-volume', value => {
+            audioManager.setVoiceVolume(value);
+        });
+        
+        // Toggle buttons
+        setupToggleButton('toggle-forest-sound', 'forest');
+        setupToggleButton('toggle-fire-sound', 'fire', true); // true for point sound
+        
+        // Voice over buttons
+        document.getElementById('play-intro').addEventListener('click', () => {
+            if (audioManager.playVoiceOver('intro')) {
+                showSpeechBubble(voiceOvers.find(vo => vo.name === 'intro').text);
+            }
+        });
+        
+        document.getElementById('play-forest').addEventListener('click', () => {
+            if (audioManager.playVoiceOver('forest')) {
+                showSpeechBubble(voiceOvers.find(vo => vo.name === 'forest').text);
+            }
+        });
+        
+        document.getElementById('play-campfire').addEventListener('click', () => {
+            if (audioManager.playVoiceOver('campfire')) {
+                showSpeechBubble(voiceOvers.find(vo => vo.name === 'campfire').text);
+            }
+        });
+    }
+    
+    function setupVolumeSlider(id, callback) {
+        const slider = document.getElementById(id);
+        const valueDisplay = document.getElementById(`${id}-value`);
+        
+        if (slider && valueDisplay) {
+            slider.addEventListener('input', e => {
+                const value = parseFloat(e.target.value);
+                valueDisplay.textContent = value.toFixed(1);
+                callback(value);
+            });
+        }
+    }
+    
+    function setupToggleButton(id, soundName, isPointSound = false) {
+        const button = document.getElementById(id);
+        
+        if (button) {
+            let isPlaying = false;
+            
+            button.addEventListener('click', () => {
+                if (isPlaying) {
+                    // Stop sound
+                    if (isPointSound) {
+                        audioManager.stopPointSound(soundName);
+                    } else {
+                        audioManager.stopAmbient(soundName);
+                    }
+                    button.textContent = 'Play';
+                    button.classList.remove('active');
+                } else {
+                    // Play sound
+                    if (isPointSound) {
+                        audioManager.playPointSound(soundName);
+                    } else {
+                        audioManager.playAmbient(soundName);
+                    }
+                    button.textContent = 'Stop';
+                    button.classList.add('active');
+                }
+                
+                isPlaying = !isPlaying;
+            });
+        }
+    }
+    
+    // Add this to your create functions, after the scene and camera setup
+    setupAudio();
+
+    let speechController;
+
+// Setup audio and speech
+function setupAudioAndSpeech() {
+    // First try to set up audio with audio files if available
+    if (typeof AudioManager !== 'undefined') {
+        setupAudio();
+    }
+    
+    // Set up speech synthesis as a fallback or additional feature
+    if (typeof setupSpeechSynthesis !== 'undefined') {
+        speechController = setupSpeechSynthesis();
+        
+        if (speechController) {
+            connectSpeechToControls(speechController);
+            console.log('Speech synthesis initialized');
+        }
+    }
+}
+
+// Initialize speech synthesis for narration when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    // This will be called after all scripts are loaded
+    setupAudioAndSpeech();
+});
+
     // Add terrain
     function createInitialTerrain() {
         terrainObject = createTerrain(settings.terrainSize, settings.terrainHeight);
@@ -413,6 +605,10 @@
         if (!currentTime) currentTime = performance.now();
         const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
         lastTime = currentTime;
+
+        if (audioManager && audioManager.listener) {
+            audioManager.listener.position.copy(camera.position);
+        }
         
         animationFrameId = requestAnimationFrame(animate);
         
@@ -437,6 +633,52 @@
         renderer.render(scene, camera);
     }
     
+    document.addEventListener('keydown', (event) => {
+        if (!speechController) return;
+        
+        switch(event.key) {
+            case '1':
+                speechController.playNarration('intro');
+                break;
+            case '2':
+                speechController.playNarration('forest');
+                break;
+            case '3':
+                speechController.playNarration('campfire');
+                break;
+            case 'Escape':
+                // Stop narration with Escape key
+                speechController.stopNarration();
+                break;
+        }
+    });
+    
+    // Handle app pause/resume to properly manage speech
+    function onVisibilityChange() {
+        if (document.hidden) {
+            // Page is hidden, pause speech
+            if (speechController && speechController.speechManager) {
+                speechController.speechManager.pause();
+            }
+        } else {
+            // Page is visible again, resume speech if it was speaking
+            if (speechController && speechController.speechManager && 
+                speechController.speechManager.isSpeaking) {
+                speechController.speechManager.resume();
+            }
+        }
+    }
+    
+    // Listen for page visibility changes
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    
+    // Cleanup function when leaving the page
+    window.addEventListener('beforeunload', () => {
+        if (speechController && speechController.speechManager) {
+            speechController.speechManager.stop();
+        }
+    });
+    
     // Initial render to show a static preview
     renderStaticPreview();
     
@@ -444,4 +686,5 @@
     isSimulationRunning = true;
     lastTime = performance.now();
     animate();
-})();
+}
+)();
